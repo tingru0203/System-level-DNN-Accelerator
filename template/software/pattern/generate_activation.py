@@ -57,6 +57,6 @@ print(activs[:10])
 print(activs.shape)
 
 np.savetxt('image00.h', [activs[:256].astype(str)], 
-            delimiter=',\n', header='int32_t image[] = {', footer='}', comments='', fmt="%10s")
+            delimiter=',\n', header='int32_t image[] = {', footer='};', comments='', fmt="%10s")
 np.savetxt('golden00.h', [activs.astype(str)], 
-            delimiter=',\n', header='int32_t golden[] = {', footer='}', comments='', fmt="%10s")
+            delimiter=',\n', header='int32_t golden[] = {', footer='};', comments='', fmt="%10s")

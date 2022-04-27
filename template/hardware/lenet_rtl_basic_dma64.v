@@ -61,6 +61,29 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
    ///////////////////////////////////
    // Add your design here
    reg [2:0] state, next_state;
+   wire do_read, read_done;
+
+   assign do_read = (state == `READ);
+
+   dma_read dr(
+      .clk(clk),
+      .rst(rst),
+      .do_read(do_read),
+      .dma_read_ctrl_ready(dma_read_ctrl_ready),
+      .dma_read_ctrl_valid(dma_read_ctrl_valid),
+      .dma_read_ctrl_data_index(dma_read_ctrl_data_index),
+      .dma_read_ctrl_data_length(dma_read_ctrl_data_length),
+      .dma_read_ctrl_data_size(dma_read_ctrl_data_size),
+      .dma_read_chnl_ready(dma_read_chnl_ready),
+      .dma_read_chnl_valid(dma_read_chnl_valid),
+      .dma_read_chnl_data(dma_read_chnl_data),
+      .read_done(read_done)
+   );
+
+   // debug
+   wire [15:0] weight_addr0, act_addr0;
+   assign weight_addr0 = dr.weight_addr0;
+   assign act_addr0 = dr.act_addr0;
 
    // FSM
    always @(posedge clk) begin
@@ -74,7 +97,15 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
 
    always @(*) begin
       case(state)
-         `WAIT: next_state
+         `WAIT: next_state = conf_done? `READ: `WAIT;
+         `READ: next_state = read_done? `DONE: `READ;
+         `DONE: next_state = `WAIT;
+         default: next_state = state;
+      endcase
+
+      case(state)
+         `DONE: acc_done = 1;
+         default: acc_done = 0;
       endcase
    end
    
@@ -85,7 +116,7 @@ endmodule
 module dma_read(
    input wire clk,
    input wire rst,
-   input wire do,
+   input wire do_read,
    input wire dma_read_ctrl_ready,
    output reg dma_read_ctrl_valid,
    output reg [31:0] dma_read_ctrl_data_index,
@@ -144,6 +175,7 @@ module dma_read(
    always @(posedge clk) begin
       if(!rst) begin
          state <= `WAIT;
+         read_done <= 0;
 
          dma_read_ctrl_valid <= 0;
          dma_read_ctrl_data_index <= 0;
@@ -167,6 +199,7 @@ module dma_read(
       end
       else begin
          state <= next_state;
+         read_done <= next_read_done;
 
          dma_read_ctrl_valid <= next_dma_read_ctrl_valid;
          dma_read_ctrl_data_index <= next_dma_read_ctrl_data_index;
@@ -192,20 +225,20 @@ module dma_read(
 
    always @(*) begin
       case(state)
-         `WAIT: next_state = do? `WEIGHT_CTRL_SEND: `WAIT;
+         `WAIT: next_state = do_read? `WEIGHT_CTRL_SEND: `WAIT;
          `WEIGHT_CTRL_SEND: next_state = `WEIGHT_CTRL_RECEIVE;
          `WEIGHT_CTRL_RECEIVE: next_state = dma_read_ctrl_ready? `WEIGHT_CHNL: `WEIGHT_CTRL_RECEIVE;
          `WEIGHT_CHNL: next_state = (weight_addr0 == 15758)? `ACT_CTRL_SEND: `WEIGHT_CHNL;
          `ACT_CTRL_SEND: next_state = `ACT_CTRL_RECEIVE;
          `ACT_CTRL_RECEIVE: next_state = dma_read_ctrl_ready? `ACT_CHNL: `ACT_CTRL_RECEIVE;
-         `ACT_CHNL: next_state = (act_addr0 == 254)? `FINISH: `WEIGHT_CHNL;
+         `ACT_CHNL: next_state = (act_addr0 == 254)? `FINISH: `ACT_CHNL;
          default: next_state = `FINISH; // `FINISH
       endcase
 
-      case(state) begin
+      case(state) 
          `FINISH: next_read_done = 1'b1;
          default: next_read_done = 1'b0;
-      end
+      endcase
    end
 
    always @(*) begin
@@ -240,8 +273,8 @@ module dma_read(
             if(dma_read_ctrl_ready) begin
                next_dma_read_chnl_ready = 1;
                
-               next_weight_addr0 = 0-2;
-               next_weight_addr1 = 1-2;
+               next_weight_addr0 = 0;
+               next_weight_addr1 = 1;
             end
             else begin
                next_dma_read_ctrl_valid = 1;
@@ -253,17 +286,17 @@ module dma_read(
          `WEIGHT_CHNL: begin   
             next_dma_read_chnl_ready = 1;
 
-            if(dma_read_chnl_ready) begin  // to SRAM
+            if(dma_read_chnl_valid) begin  // to SRAM
                next_weight_wea0 = 4'b1111;
                next_weight_wea1 = 4'b1111;
-               next_weight_addr0 = addr0 + 2;
-               next_weight_addr1 = addr1 + 2;
+               next_weight_addr0 = weight_addr0 + 2;
+               next_weight_addr1 = weight_addr1 + 2;
                next_weight_wdata0 = dma_read_chnl_data[31:0];
                next_weight_wdata1 = dma_read_chnl_data[63:32];
             end
             else begin
-               next_weight_addr0 = addr0;
-               next_weight_addr1 = addr1;
+               next_weight_addr0 = weight_addr0;
+               next_weight_addr1 = weight_addr1;
             end
          end
          `ACT_CTRL_SEND: begin
@@ -276,8 +309,8 @@ module dma_read(
             if(dma_read_ctrl_ready) begin
                next_dma_read_chnl_ready = 1;
                
-               next_act_addr0 = 0-2;
-               next_act_addr1 = 1-2;
+               next_act_addr0 = 0;
+               next_act_addr1 = 1;
             end
             else begin
                next_dma_read_ctrl_valid = 1;
@@ -289,20 +322,39 @@ module dma_read(
          `ACT_CHNL: begin   
             next_dma_read_chnl_ready = 1;
 
-            if(dma_read_chnl_ready) begin  // to SRAM
+            if(dma_read_chnl_valid) begin  // to SRAM
                next_act_wea0 = 4'b1111;
                next_act_wea1 = 4'b1111;
-               next_act_addr0 = addr0 + 2;
-               next_act_addr1 = addr1 + 2;
+               next_act_addr0 = act_addr0 + 2;
+               next_act_addr1 = act_addr1 + 2;
                next_act_wdata0 = dma_read_chnl_data[31:0];
                next_act_wdata1 = dma_read_chnl_data[63:32];
             end
             else begin
-               next_weight_addr0 = addr0;
-               next_weight_addr1 = addr1;
+               next_weight_addr0 = act_addr0;
+               next_weight_addr1 = act_addr1;
             end
          end
       endcase
    end
 
 endmodule
+
+//
+
+/*module dma_write(
+   input wire clk,
+   input wire rst,
+   input wire do_write,
+   input wire dma_write_ctrl_ready,
+   output reg dma_write_ctrl_valid,
+   output reg [31:0] dma_write_ctrl_data_index,
+   output reg [31:0] dma_write_ctrl_data_length,
+   output reg [2:0] dma_write_ctrl_data_size,
+   input wire dma_write_chnl_ready,
+   output reg dma_write_chnl_valid,
+   output reg [63:0]  dma_write_chnl_data,
+   output reg write_done
+);
+
+endmodule*/

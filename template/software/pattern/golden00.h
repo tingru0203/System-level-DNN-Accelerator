@@ -752,4 +752,4 @@ int32_t golden[] = {
 0x00001F51,
 0xFFFFD2C3,
 0xFFFFE463
-}
+};

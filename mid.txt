@@ -1,0 +1,11 @@
+source setup.sh
+cd esp/socs/xilinx-vcu128-xcvu37p/
+
+rm -rf socgen/ modelsim/
+
+make grlib-xconfig
+make lenet_rtl-hls
+make esp-xconfig
+make lenet_rtl-baremetal
+setenv TEST_PROGRAM ./soft-build/ariane/baremetal/lenet_rtl.exe
+make sim-gui

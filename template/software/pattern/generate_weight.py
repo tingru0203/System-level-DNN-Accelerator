@@ -39,4 +39,4 @@ print(weights[:10])
 print(weights.shape)
 
 np.savetxt('weight.h', [weights.astype(str)], 
-            delimiter=',\n', header='int32_t weight[] = {', footer='}', comments='', fmt="%10s")
+            delimiter=',\n', header='int32_t weight[] = {', footer='};', comments='', fmt="%10s")
