@@ -80,10 +80,19 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       .read_done(read_done)
    );
 
-   // debug
+   // debug //////////////////////////////////////
    wire [15:0] weight_addr0, act_addr0;
    assign weight_addr0 = dr.weight_addr0;
    assign act_addr0 = dr.act_addr0;
+
+   wire [3:0] weight_wea0, act_wea0;
+   assign weight_wea0 = dr.weight_wea0;
+   assign act_wea0 = dr.act_wea0;
+
+   wire [31:0] weight_wdata0, act_wdata0;
+   assign weight_wdata0 = dr.weight_wdata0;
+   assign act_wdata0 = dr.act_wdata0;
+   ////////////////////////////////////////////////
 
    // FSM
    always @(posedge clk) begin
@@ -273,8 +282,8 @@ module dma_read(
             if(dma_read_ctrl_ready) begin
                next_dma_read_chnl_ready = 1;
                
-               next_weight_addr0 = 0;
-               next_weight_addr1 = 1;
+               next_weight_addr0 = 0-2;
+               next_weight_addr1 = 1-2;
             end
             else begin
                next_dma_read_ctrl_valid = 1;
@@ -309,8 +318,8 @@ module dma_read(
             if(dma_read_ctrl_ready) begin
                next_dma_read_chnl_ready = 1;
                
-               next_act_addr0 = 0;
-               next_act_addr1 = 1;
+               next_act_addr0 = 0-2;
+               next_act_addr1 = 1-2;
             end
             else begin
                next_dma_read_ctrl_valid = 1;
@@ -331,8 +340,8 @@ module dma_read(
                next_act_wdata1 = dma_read_chnl_data[63:32];
             end
             else begin
-               next_weight_addr0 = act_addr0;
-               next_weight_addr1 = act_addr1;
+               next_act_addr0 = act_addr0;
+               next_act_addr1 = act_addr1;
             end
          end
       endcase
