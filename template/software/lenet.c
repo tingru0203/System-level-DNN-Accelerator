@@ -76,7 +76,7 @@ static int validate_buf()
 	errors = 0;
 
 	// Conv1
-	/*for(i = 256 ; i < 592 ; i++){
+	for(i = 256 ; i < 592 ; i++){
 		if(mem[20000+i] != golden[i]){
 			printf("[ERROR]: index %d, result:%8x, gold:%8x\n", i-256, mem[20000+i], golden[i]);
 			errors++;
@@ -93,7 +93,7 @@ static int validate_buf()
 	errors = 0;
 	
 	// Conv2
-	for(i = 592 ; i < 692 ; i++){
+	/*for(i = 592 ; i < 692 ; i++){
 		if(mem[20000+i] != golden[i]){
 			printf("[ERROR]: index %d, result:%8x, gold:%8x\n", i-592, mem[20000+i], golden[i]);
 			errors++;
