@@ -17,11 +17,11 @@
 
 // dma_write
 // `define WAIT 3'd0
-//`define ACT_CTRL_S 3'd4
-//`define ACT_CTRL_R 3'd5
+// `define ACT_CTRL_S 3'd4
+// `define ACT_CTRL_R 3'd5
 `define ACT_CHNL_S 3'd1
 `define ACT_CHNL_R 3'd2
-//`define FINISH 3'd7
+// `define FINISH 3'd7
 
 module lenet_rtl_basic_dma64( clk, rst, dma_read_chnl_valid, dma_read_chnl_data, dma_read_chnl_ready,
 /* <<--params-list-->> */
@@ -71,10 +71,50 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
    reg [2:0] state, next_state;
    wire read_done, write_done;
 
+   // weight
+   wire [3:0] weight_wea0, weight_wea1;
+   wire [15:0] weight_addr0, weight_addr1;
+   wire [31:0] weight_wdata0, weight_wdata1;
+   wire [31:0] weight_rdata0, weight_rdata1;
+
+   // act
+   wire [3:0] act_wea0, act_wea1;
+   reg [15:0] act_addr0, act_addr1;
+   wire [15:0] read_act_addr0, write_act_addr0, read_act_addr1, write_act_addr1;
+   wire [31:0] act_wdata0, act_wdata1;
+   wire [31:0] act_rdata0, act_rdata1;
+
+
+   SRAM_weight_16384x32b sram_weight ( 
+      .clk(clk),
+      .wea0(weight_wea0),
+      .addr0(weight_addr0),
+      .wdata0(weight_wdata0),
+      .rdata0(weight_rdata0),
+      .wea1(weight_wea1),
+      .addr1(weight_addr1),
+      .wdata1(weight_wdata1),
+      .rdata1(weight_rdata1)
+   );
+
+   SRAM_activation_1024x32b sram_act ( 
+      .clk(clk),
+      .wea0(act_wea0),
+      .addr0(act_addr0),
+      .wdata0(act_wdata0),
+      .rdata0(act_rdata0),
+      .wea1(act_wea1),
+      .addr1(act_addr1),
+      .wdata1(act_wdata1),
+      .rdata1(act_rdata1)
+   );
+
    dma_read dr(
       .clk(clk),
       .rst(rst),
       .do_read(state == `READ),
+      .read_done(read_done),
+
       .dma_read_ctrl_ready(dma_read_ctrl_ready),
       .dma_read_ctrl_valid(dma_read_ctrl_valid),
       .dma_read_ctrl_data_index(dma_read_ctrl_data_index),
@@ -83,13 +123,22 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       .dma_read_chnl_ready(dma_read_chnl_ready),
       .dma_read_chnl_valid(dma_read_chnl_valid),
       .dma_read_chnl_data(dma_read_chnl_data),
-      .read_done(read_done)
+
+      .weight_wea0(weight_wea0), .weight_wea1(weight_wea1),
+      .weight_addr0(weight_addr0), .weight_addr1(weight_addr1),
+      .weight_wdata0(weight_wdata0), .weight_wdata1(weight_wdata1),
+
+      .act_wea0(act_wea0), .act_wea1(act_wea1),
+      .act_addr0(read_act_addr0), .act_addr1(read_act_addr1),
+      .act_wdata0(act_wdata0), .act_wdata1(act_wdata1)
    );
 
    dma_write dw(
       .clk(clk),
       .rst(rst),
       .do_write(state == `WRITE),
+      .write_done(write_done),
+
       .dma_write_ctrl_ready(dma_write_ctrl_ready),
       .dma_write_ctrl_valid(dma_write_ctrl_valid),
       .dma_write_ctrl_data_index(dma_write_ctrl_data_index),
@@ -98,12 +147,15 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       .dma_write_chnl_ready(dma_write_chnl_ready),
       .dma_write_chnl_valid(dma_write_chnl_valid),
       .dma_write_chnl_data(dma_write_chnl_data),
-      .write_done(write_done)
+      
+
+      .act_rdata0(act_rdata0), .act_rdata1(act_rdata1),
+      .act_addr0(write_act_addr0), .act_addr1(write_act_addr1)
    );
 
    // debug //////////////////////////////////////
    // dma_read
-   wire [15:0] weight_addr0, act_addr0;
+   /*wire [15:0] weight_addr0, act_addr0;
    assign weight_addr0 = dr.weight_addr0;
    assign act_addr0 = dr.act_addr0;
 
@@ -120,7 +172,7 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
    assign act_addr0_dw = dw.act_addr0;
 
    wire [31:0] act_rdata0;
-   assign act_rdata0 = dw.act_rdata0;
+   assign act_rdata0 = dw.act_rdata0;*/
    ////////////////////////////////////////////////
 
    // FSM
@@ -147,6 +199,17 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
          `DONE: acc_done = 1;
          default: acc_done = 0;
       endcase
+
+      case(state)
+         `READ: begin
+            act_addr0 = read_act_addr0;
+            act_addr1 = read_act_addr1;
+         end
+         default: begin
+            act_addr0 = write_act_addr0;
+            act_addr1 = write_act_addr1;
+         end
+      endcase
    end
    
 endmodule
@@ -157,6 +220,8 @@ module dma_read(
    input wire clk,
    input wire rst,
    input wire do_read,
+   output reg read_done,
+
    input wire dma_read_ctrl_ready,
    output reg dma_read_ctrl_valid,
    output reg [31:0] dma_read_ctrl_data_index,
@@ -165,7 +230,14 @@ module dma_read(
    output reg dma_read_chnl_ready,
    input wire dma_read_chnl_valid,
    input wire [63:0] dma_read_chnl_data,
-   output reg read_done
+
+   output reg [3:0] weight_wea0, weight_wea1,
+   output reg [15:0] weight_addr0, weight_addr1,
+   output reg [31:0] weight_wdata0, weight_wdata1,
+
+   output reg [3:0] act_wea0, act_wea1,
+   output reg [15:0] act_addr0, act_addr1,
+   output reg [31:0] act_wdata0, act_wdata1
 );
 
    reg [2:0] state, next_state;
@@ -177,40 +249,14 @@ module dma_read(
    reg next_read_done;
 
    // weight
-   reg [3:0] weight_wea0, weight_wea1, next_weight_wea0, next_weight_wea1;
-   reg [15:0] weight_addr0, weight_addr1, next_weight_addr0, next_weight_addr1;
-   reg [31:0] weight_wdata0, weight_wdata1, next_weight_wdata0, next_weight_wdata1;
-   wire [31:0] weight_rdata0, weight_rdata1;
+   reg [3:0] next_weight_wea0, next_weight_wea1;
+   reg [15:0] next_weight_addr0, next_weight_addr1;
+   reg [31:0] next_weight_wdata0, next_weight_wdata1;
 
    // act
-   reg [3:0] act_wea0, act_wea1, next_act_wea0, next_act_wea1;
-   reg [15:0] act_addr0, act_addr1, next_act_addr0, next_act_addr1;
-   reg [31:0] act_wdata0, act_wdata1, next_act_wdata0, next_act_wdata1;
-   wire [31:0] act_rdata0, act_rdata1;
-
-   SRAM_weight_16384x32b sram_weight ( 
-      .clk(clk),
-      .wea0(weight_wea0),
-      .addr0(weight_addr0),
-      .wdata0(weight_wdata0),
-      .rdata0(weight_rdata0),
-      .wea1(weight_wea1),
-      .addr1(weight_addr1),
-      .wdata1(weight_wdata1),
-      .rdata1(weight_rdata1)
-   );
-
-   SRAM_activation_1024x32b sram_act ( 
-      .clk(clk),
-      .wea0(act_wea0),
-      .addr0(act_addr0),
-      .wdata0(act_wdata0),
-      .rdata0(act_rdata0),
-      .wea1(act_wea1),
-      .addr1(act_addr1),
-      .wdata1(act_wdata1),
-      .rdata1(act_rdata1)
-   );
+   reg [3:0] next_act_wea0, next_act_wea1;
+   reg [15:0] next_act_addr0, next_act_addr1;
+   reg [31:0] next_act_wdata0, next_act_wdata1;
 
    always @(posedge clk) begin
       if(!rst) begin
@@ -378,6 +424,8 @@ module dma_write(
    input wire clk,
    input wire rst,
    input wire do_write,
+   output reg write_done,
+
    input wire dma_write_ctrl_ready,
    output reg dma_write_ctrl_valid,
    output reg [31:0] dma_write_ctrl_data_index,
@@ -386,7 +434,9 @@ module dma_write(
    input wire dma_write_chnl_ready,
    output reg dma_write_chnl_valid,
    output reg [63:0] dma_write_chnl_data,
-   output reg write_done
+
+   input wire [31:0] act_rdata0, act_rdata1,
+   output reg [15:0] act_addr0, act_addr1
 );
 
    reg [2:0] state, next_state;
@@ -399,22 +449,7 @@ module dma_write(
    reg next_write_done;
 
    // act
-   //reg [3:0] act_wea0, act_wea1, next_act_wea0, next_act_wea1;
-   reg [15:0] act_addr0, act_addr1, next_act_addr0, next_act_addr1;
-   //wire [31:0] act_wdata0, act_wdata1;
-   wire [31:0] act_rdata0, act_rdata1;
-
-   SRAM_activation_1024x32b sram_act ( 
-      .clk(clk),
-      .wea0(4'b0),
-      .addr0(act_addr0),
-      .wdata0(32'b0),
-      .rdata0(act_rdata0),
-      .wea1(4'b0),
-      .addr1(act_addr1),
-      .wdata1(32'b0),
-      .rdata1(act_rdata1)
-   );
+   reg [15:0] next_act_addr0, next_act_addr1;
 
    always @(posedge clk) begin
       if(!rst) begin
@@ -505,9 +540,9 @@ module dma_write(
             next_act_addr1 = act_addr1 + 2;
          end
          `ACT_CHNL_R: begin
-            if(!dma_write_chnl_ready) begin
+            if(!dma_write_chnl_ready) begin // wait for ready
                next_dma_write_chnl_valid = 1;
-               next_dma_write_chnl_data = {act_rdata1, act_rdata0};
+               next_dma_write_chnl_data = dma_write_chnl_data;
             end
          end
       endcase
