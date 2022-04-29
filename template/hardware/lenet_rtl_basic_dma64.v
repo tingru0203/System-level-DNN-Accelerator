@@ -100,11 +100,23 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
    wire [31:0] read_weight_wdata0, read_weight_wdata1;
 
    // act
-   wire [3:0] read_act_wea0, read_act_wea1;
-   wire [15:0] read_act_addr0, read_act_addr1;
-   wire [31:0] read_act_wdata0, read_act_wdata1;
+   reg [3:0] read_act_wea0, read_act_wea1;
+   reg [15:0] read_act_addr0, read_act_addr1;
+   reg [31:0] read_act_wdata0, read_act_wdata1;
+
+   /* lenet */
+   // weight
+   wire [3:0] lenet_weight_wea0, lenet_weight_wea1;
+   wire [15:0] lenet_weight_addr0, lenet_weight_addr1;
+   wire [31:0] lenet_weight_wdata0, lenet_weight_wdata1;
+
+   // act
+   wire [3:0] lenet_act_wea0, lenet_act_wea1;
+   wire [15:0] lenet_act_addr0, lenet_act_addr1;
+   wire [31:0] lenet_act_wdata0, lenet_act_wdata1;
 
    /* write */
+   // act
    wire [15:0] write_act_addr0, write_act_addr1;
 
 
@@ -176,7 +188,7 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       .act_addr0(write_act_addr0), .act_addr1(write_act_addr1)
    );
 
-   /*lenet lenet_inst(
+   lenet lenet_inst(
       .clk(clk),
       .rst_n(rst),
 
@@ -191,25 +203,25 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       .scale_FC2(conf_info_scale_FC2),
 
       // weight sram, single port
-      .sram_weight_wea0(weight_wea0),
-      .sram_weight_addr0(weight_addr0),
-      .sram_weight_wdata0(weight_wdata0),
+      .sram_weight_wea0(lenet_weight_wea0),
+      .sram_weight_addr0(lenet_weight_addr0),
+      .sram_weight_wdata0(lenet_weight_wdata0),
       .sram_weight_rdata0(weight_rdata0),
-      .sram_weight_wea1(weight_wea1),
-      .sram_weight_addr1(weight_addr1),
-      .sram_weight_wdata1(weight_wdata1),
+      .sram_weight_wea1(lenet_weight_wea1),
+      .sram_weight_addr1(lenet_weight_addr1),
+      .sram_weight_wdata1(lenet_weight_wdata1),
       .sram_weight_rdata1(weight_rdata1),
 
       // Output sram,dual port
-      .sram_act_wea0(act_wea0),
-      .sram_act_addr0(act_addr0),
-      .sram_act_wdata0(act_wdata0),
+      .sram_act_wea0(lenet_act_wea0),
+      .sram_act_addr0(lenet_act_addr0),
+      .sram_act_wdata0(lenet_act_wdata0),
       .sram_act_rdata0(act_rdata0),
-      .sram_act_wea1(act_wea1),
-      .sram_act_addr1(act_addr1),
-      .sram_act_wdata1(act_wdata1),
+      .sram_act_wea1(lenet_act_wea1),
+      .sram_act_addr1(lenet_act_addr1),
+      .sram_act_wdata1(lenet_act_wdata1),
       .sram_act_rdata1(act_rdata1)
-   );*/
+   );
 
    // debug //////////////////////////////////////
    // dma_read
@@ -247,8 +259,8 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       case(state)
          `WAIT: next_state = conf_done? `READ: `WAIT;
          `READ: next_state = read_finish? `LENET: `READ;
-         //`LENET: next_state = compute_finish? `WRITE: `LENET;
-         `LENET: next_state = `WRITE;
+         `LENET: next_state = compute_finish? `WRITE: `LENET;
+         //`LENET: next_state = `WRITE;
          `WRITE: next_state = write_finish? `DONE: `WRITE;
          `DONE: next_state = `WAIT;
          default: next_state = state;
@@ -294,6 +306,21 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
             act_wdata1 = read_act_wdata1;
          end  
          `LENET: begin
+            // weight
+            weight_wea0 = lenet_weight_wea0;
+            weight_wea1 = lenet_weight_wea1;
+            weight_addr0 = lenet_weight_addr0;
+            weight_addr1 = lenet_weight_addr1;
+            weight_wdata0 = lenet_weight_wdata0;
+            weight_wdata1 = lenet_weight_wdata1;
+
+            // act
+            act_wea0 = lenet_act_wea0;
+            act_wea1 = lenet_act_wea1;
+            act_addr0 = lenet_act_addr0;
+            act_addr1 = lenet_act_addr1;
+            act_wdata0 = lenet_act_wdata0; 
+            act_wdata1 = lenet_act_wdata1;
          end 
          `WRITE: begin
             // act
@@ -581,7 +608,7 @@ module dma_write(
          `ACT_CHNL_S: next_state = `ACT_CHNL_R;
          `ACT_CHNL_R: begin
             if(dma_write_chnl_ready) 
-               next_state = (act_addr0 == 752)? `FINISH: `ACT_CHNL_S;
+               next_state = (act_addr0 == 754)? `FINISH: `ACT_CHNL_S;
             else
                next_state = `ACT_CHNL_R;
          end
@@ -609,7 +636,7 @@ module dma_write(
          `ACT_CTRL_S: begin
             next_dma_write_ctrl_valid = 1;
             next_dma_write_ctrl_data_index = 10000;
-            next_dma_write_ctrl_data_length = 376;
+            next_dma_write_ctrl_data_length = 377;
             next_dma_write_ctrl_data_size = 3'b010;
 
             next_act_addr0 = 0;
@@ -619,7 +646,7 @@ module dma_write(
             if(!dma_write_ctrl_ready) begin
                next_dma_write_ctrl_valid = 1;
                next_dma_write_ctrl_data_index = 10000;
-               next_dma_write_ctrl_data_length = 376;
+               next_dma_write_ctrl_data_length = 377;
                next_dma_write_ctrl_data_size = 3'b010;
             end
          end

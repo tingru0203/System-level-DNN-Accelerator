@@ -93,7 +93,7 @@ static int validate_buf()
 	errors = 0;
 	
 	// Conv2
-	/*for(i = 592 ; i < 692 ; i++){
+	for(i = 592 ; i < 692 ; i++){
 		if(mem[20000+i] != golden[i]){
 			printf("[ERROR]: index %d, result:%8x, gold:%8x\n", i-592, mem[20000+i], golden[i]);
 			errors++;
@@ -161,7 +161,7 @@ static int validate_buf()
 		printf("===> FC2 pass!\n");
 	else
 		printf("===> FC2 fail!\n");
-	total_errors += errors;*/
+	total_errors += errors;
 
 
 	return total_errors;
