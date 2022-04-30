@@ -334,7 +334,6 @@ module dma_read(
    reg [31:0] next_dma_read_ctrl_data_length;
    reg [2:0] next_dma_read_ctrl_data_size;
    reg next_dma_read_chnl_ready;
-   reg next_read_finish;
 
    // weight
    reg [3:0] next_weight_wea0, next_weight_wea1;
@@ -349,7 +348,6 @@ module dma_read(
    always @(posedge clk) begin
       if(!rst) begin
          state <= `WAIT;
-         read_finish <= 0;
 
          dma_read_ctrl_valid <= 0;
          dma_read_ctrl_data_index <= 0;
@@ -373,7 +371,6 @@ module dma_read(
       end
       else begin
          state <= next_state;
-         read_finish <= next_read_finish;
 
          dma_read_ctrl_valid <= next_dma_read_ctrl_valid;
          dma_read_ctrl_data_index <= next_dma_read_ctrl_data_index;
@@ -410,8 +407,8 @@ module dma_read(
       endcase
 
       case(state) 
-         `FINISH: next_read_finish = 1'b1;
-         default: next_read_finish = 1'b0;
+         `FINISH: read_finish = 1'b1;
+         default: read_finish = 1'b0;
       endcase
    end
 
@@ -532,7 +529,6 @@ module dma_write(
    reg [2:0] next_dma_write_ctrl_data_size;
    reg next_dma_write_chnl_valid;
    reg [63:0] next_dma_write_chnl_data;
-   reg next_write_finish;
 
    // act
    reg [15:0] next_act_addr0, next_act_addr1;
@@ -540,7 +536,6 @@ module dma_write(
    always @(posedge clk) begin
       if(!rst) begin
          state <= `WAIT;
-         write_finish <= 0;
 
          dma_write_ctrl_valid <= 0;
          dma_write_ctrl_data_index <= 0;
@@ -554,7 +549,6 @@ module dma_write(
       end
       else begin
          state <= next_state;
-         write_finish <= next_write_finish;
 
          dma_write_ctrl_valid <= next_dma_write_ctrl_valid;
          dma_write_ctrl_data_index <= next_dma_write_ctrl_data_index;
@@ -584,8 +578,8 @@ module dma_write(
       endcase
 
       case(state) 
-         `FINISH: next_write_finish = 1'b1;
-         default: next_write_finish = 1'b0;
+         `FINISH: write_finish = 1'b1;
+         default: write_finish = 1'b0;
       endcase
    end
 

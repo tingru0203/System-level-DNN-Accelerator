@@ -71,7 +71,7 @@ static int validate_buf()
 	if(errors == 0)
 		printf("===> Image pass!\n");
 	else
-		printf("===> Image fail!\n");
+		printf("===> Conv1 fail!\n");
 	total_errors += errors;
 	errors = 0;
 
