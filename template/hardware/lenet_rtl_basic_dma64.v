@@ -406,7 +406,7 @@ module dma_read(
          `ACT_CTRL_S: next_state = `ACT_CTRL_R;
          `ACT_CTRL_R: next_state = dma_read_ctrl_ready? `ACT_CHNL: `ACT_CTRL_R;
          `ACT_CHNL: next_state = (act_addr0 == 254)? `FINISH: `ACT_CHNL;
-         default: next_state = `FINISH; // `FINISH
+         default: next_state = `WAIT; // `FINISH
       endcase
 
       case(state) 
@@ -580,7 +580,7 @@ module dma_write(
             else
                next_state = `ACT_CHNL_R;
          end
-         default: next_state = `FINISH; // `FINISH
+         default: next_state = `WAIT; // `FINISH
       endcase
 
       case(state) 
