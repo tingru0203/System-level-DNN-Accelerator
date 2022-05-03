@@ -244,6 +244,7 @@ conf_done, acc_done, debug, dma_read_ctrl_valid, dma_read_ctrl_data_index, dma_r
       debug = 0;
    end
 
+   // wea, addr, wdata
    always @(*) begin
       case(state)
          `READ: begin
@@ -434,7 +435,7 @@ module dma_read(
       next_act_wdata1 = 0;
 
       case(state)
-         `WEIGHT_CTRL_S: begin
+         `WEIGHT_CTRL_S: begin // send control signal to DRAM
             next_dma_read_ctrl_valid = 1;
             next_dma_read_ctrl_data_index = 0;
             next_dma_read_ctrl_data_length = 7880;
@@ -444,9 +445,9 @@ module dma_read(
             next_weight_addr1 = 1-2;
          end
          `WEIGHT_CTRL_R: begin
-            if(dma_read_ctrl_ready)
-               next_dma_read_chnl_ready = 1;   
-            else begin // wait for ready
+            if(dma_read_ctrl_ready) // DRAM receives the control signal
+               next_dma_read_chnl_ready = 1; // ready for receiving channel signal
+            else begin // wait for ready (keep sending control signal)
                next_dma_read_ctrl_valid = dma_read_ctrl_valid;
                next_dma_read_ctrl_data_index = dma_read_ctrl_data_index;
                next_dma_read_ctrl_data_length = dma_read_ctrl_data_length;
@@ -454,9 +455,9 @@ module dma_read(
             end
          end
          `WEIGHT_CHNL: begin   
-            next_dma_read_chnl_ready = 1;
+            next_dma_read_chnl_ready = 1; // ready for receiving channel signal
 
-            if(dma_read_chnl_valid) begin  // write SRAM
+            if(dma_read_chnl_valid) begin  // receive channel signal (valid, data), write data to SRAM
                next_weight_wea0 = 4'b1111;
                next_weight_wea1 = 4'b1111;
                next_weight_addr0 = weight_addr0 + 2;
@@ -465,7 +466,7 @@ module dma_read(
                next_weight_wdata1 = dma_read_chnl_data[63:32];
             end
          end
-         `ACT_CTRL_S: begin
+         `ACT_CTRL_S: begin // send control signal to DRAM
             next_dma_read_ctrl_valid = 1;
             next_dma_read_ctrl_data_index = 10000;
             next_dma_read_ctrl_data_length = 128;
@@ -474,10 +475,10 @@ module dma_read(
             next_act_addr0 = 0-2;
             next_act_addr1 = 1-2;
          end
-         `ACT_CTRL_R: begin
-            if(dma_read_ctrl_ready)
-               next_dma_read_chnl_ready = 1;
-            else begin // wait for ready
+         `ACT_CTRL_R: begin 
+            if(dma_read_ctrl_ready) // DRAM receives the control signal
+               next_dma_read_chnl_ready = 1; // ready for receiving channel signal
+            else begin // wait for ready (keep sending channel signal)
                next_dma_read_ctrl_valid = dma_read_ctrl_valid;
                next_dma_read_ctrl_data_index = dma_read_ctrl_data_index;
                next_dma_read_ctrl_data_length = dma_read_ctrl_data_length;
@@ -485,9 +486,9 @@ module dma_read(
             end
          end
          `ACT_CHNL: begin   
-            next_dma_read_chnl_ready = 1;
+            next_dma_read_chnl_ready = 1; // ready for receiving channel signal
 
-            if(dma_read_chnl_valid) begin  // write SRAM
+            if(dma_read_chnl_valid) begin // receive channel signal (valid, data), write data to SRAM
                next_act_wea0 = 4'b1111;
                next_act_wea1 = 4'b1111;
                next_act_addr0 = act_addr0 + 2;
@@ -595,7 +596,7 @@ module dma_write(
       next_act_addr1 = act_addr1;
 
       case(state)
-         `ACT_CTRL_S: begin
+         `ACT_CTRL_S: begin // send control signal to DRAM
             next_dma_write_ctrl_valid = 1;
             next_dma_write_ctrl_data_index = 10000;
             next_dma_write_ctrl_data_length = 377;
@@ -605,14 +606,14 @@ module dma_write(
             next_act_addr1 = 1;
          end
          `ACT_CTRL_R: begin
-            if(!dma_write_ctrl_ready) begin // wait for ready
+            if(!dma_write_ctrl_ready) begin // wait for ready (keep sending control signal)
                next_dma_write_ctrl_valid = dma_write_ctrl_valid;
                next_dma_write_ctrl_data_index = dma_write_ctrl_data_index;
                next_dma_write_ctrl_data_length = dma_write_ctrl_data_length;
                next_dma_write_ctrl_data_size = dma_write_ctrl_data_size;
             end
          end
-         `ACT_CHNL_S: begin   
+         `ACT_CHNL_S: begin // read data from SRAM, send channel signal (valid, data) to DRAM
             next_dma_write_chnl_valid = 1;
             next_dma_write_chnl_data = {act_rdata1, act_rdata0};
 
@@ -620,7 +621,7 @@ module dma_write(
             next_act_addr1 = act_addr1 + 2;
          end
          `ACT_CHNL_R: begin
-            if(!dma_write_chnl_ready) begin // wait for ready
+            if(!dma_write_chnl_ready) begin // wait for ready (keep sending channel signal)
                next_dma_write_chnl_valid = dma_write_chnl_valid;
                next_dma_write_chnl_data = dma_write_chnl_data;
             end
